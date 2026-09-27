@@ -1,10 +1,6 @@
-﻿.env
-config.js
-
-# Backend
-backend/.env
-backend/data/
-backend/node_modules/
-
-# Frontend config (may contain keys)
-config.js
+node_modules/
+.env
+data/
+*.db
+*.sqlite
+*.sqlite3
