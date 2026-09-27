@@ -3,7 +3,7 @@ services:
     name: vmmun-backend
     runtime: node
     rootDir: backend
-    buildCommand: npm ci --omit=optional
+    buildCommand: npm install --omit=optional
     startCommand: npm start
     healthCheckPath: /health
     envVars:
@@ -12,7 +12,7 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: FRONTEND_ORIGIN
-        value: https://vmmun-20.vercel.app
+        value: https://vmmun-20-ten.vercel.app
       - key: RAZORPAY_KEY_ID
         sync: false
       - key: RAZORPAY_KEY_SECRET
