@@ -29,6 +29,10 @@ const { v4: uuidv4 } = require('uuid');
 // ─── Dialect detection ────────────────────────────────────────────────────────
 const USE_PG = !!process.env.DATABASE_URL;
 
+if (process.env.NODE_ENV === 'production' && !USE_PG) {
+  throw new Error('FATAL: DATABASE_URL is required in production; refusing to open SQLite.');
+}
+
 // SQL fragment constants (dialect-aware)
 const AGG     = USE_PG ? 'STRING_AGG' : 'GROUP_CONCAT';
 const NOW_SQL = USE_PG ? "NOW()::TEXT" : "datetime('now')";
@@ -56,7 +60,9 @@ if (USE_PG) {
 let sqlite = null;
 
 if (!USE_PG) {
-  const Database = require('better-sqlite3');
+// SQLite is a local-development dependency. Production uses PostgreSQL and
+// intentionally omits optional dependencies during the Render build.
+let Database;
   const DB_PATH  = process.env.DB_PATH || path.join(__dirname, '../data/vmmun.db');
   const dataDir  = path.dirname(DB_PATH);
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
@@ -108,7 +114,8 @@ async function getOne(sql, params = []) {
 async function run(sql, params = []) {
   if (USE_PG) {
     await pgPool.query(pgify(sql), params);
-  } else {
+} else {
+  Database = require('better-sqlite3');
     sqlite.prepare(sql).run(...params);
   }
 }
@@ -170,11 +177,14 @@ async function initSchema() {
   if (USE_PG) {
     const schemaPath = path.join(__dirname, '../schema.sql');
     const schemaSql  = fs.readFileSync(schemaPath, 'utf-8');
-    // Split on semicolons; skip blank lines and pure comment lines
+    // Strip SQL comment lines before splitting. Filtering whole chunks would
+    // accidentally discard the first CREATE statement when the schema starts
+    // with a comment header.
     const statements = schemaSql
+      .replace(/^\s*--.*$/gm, '')
       .split(';')
       .map(s => s.trim())
-      .filter(s => s.length > 0 && !s.startsWith('--'));
+      .filter(Boolean);
     for (const stmt of statements) {
       await pgPool.query(stmt);
     }
